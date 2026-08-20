@@ -160,6 +160,7 @@ devhostd share tailscale <name> [--public]
 devhostd share tailscale <name> [--public] --stop
 devhostd share ngrok <name>
 devhostd api <method> [json-params]
+devhostd update [--check]
 devhostd clean
 devhostd version
 ```
@@ -286,6 +287,30 @@ devhostd api config
 
 Useful methods include `ping`, `status`, `health`, `list`, `routes`, `route`, `config`, `register`, `deregister`, `add_hostname`, and `remove_hostname`. The API is local-only through a Unix domain socket or Windows named pipe.
 
+## Updates
+
+Released builds check GitHub for a newer version when the CLI is used. Results are cached for 12 hours, network failures are ignored, and an available release prints a short notice to standard error:
+
+```text
+devhostd 0.0.4 is available (current: 0.0.3). Run `devhostd update`.
+```
+
+Check explicitly without installing anything:
+
+```sh
+devhostd update --check
+```
+
+Download the matching release archive, verify its SHA-256 checksum, and replace the current executable:
+
+```sh
+devhostd update
+```
+
+The executable must be writable by the current user. A system-owned installation may require running the update with elevated privileges. Development builds report `dev` or `0.0.0` and cannot update themselves. Private repository releases use `GITHUB_TOKEN` when it is available.
+
+Set `DEVHOSTD_UPDATE_CHECK=0` to disable automatic checks. The explicit `devhostd update` commands remain available.
+
 ## Environment variables
 
 ```text
@@ -297,6 +322,7 @@ DEVHOSTD_TLD=a[,b]         Configure one or more TLDs
 DEVHOSTD_WILDCARD=1        Enable wildcard route matching
 DEVHOSTD_LAN=1             Enable LAN listening and `.local` mDNS
 DEVHOSTD_SYNC_HOSTS=0      Disable automatic hosts-file synchronization
+DEVHOSTD_UPDATE_CHECK=0    Disable automatic release checks
 DEVHOSTD_STATE_DIR=<path>  Override the state directory
 ```
 

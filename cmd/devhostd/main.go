@@ -31,6 +31,7 @@ import (
 	"github.com/devhostd/devhostd/internal/runner"
 	"github.com/devhostd/devhostd/internal/service"
 	"github.com/devhostd/devhostd/internal/state"
+	updater "github.com/devhostd/devhostd/internal/update"
 	"github.com/spf13/cobra"
 )
 
@@ -64,6 +65,9 @@ func run(args []string) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if args[0] != "update" {
+		updater.Notify(l.Root, version, os.Stderr)
+	}
 	switch args[0] {
 	case "run":
 		e = runApp(ctx, l, args[1:])
@@ -95,6 +99,8 @@ func run(args []string) int {
 		e = shareCmd(ctx, l, args[1:])
 	case "api":
 		e = apiCmd(ctx, l, args[1:])
+	case "update":
+		e = updateCmd(ctx, l, args[1:])
 	case "version", "--version", "-v":
 		fmt.Println(version)
 		return 0
@@ -130,9 +136,36 @@ Commands:
   clean                     Remove local state
   share tailscale|ngrok     Publish a route
   api <method> [json]       Call the agent-facing control API
+  update [--check]          Check for or install a new release
   version                   Print version
 
 Global option: --state-dir <path>`)
+}
+func updateCmd(ctx context.Context, l state.Layout, args []string) error {
+	if len(args) > 1 || (len(args) == 1 && args[0] != "--check") {
+		return errors.New("usage: devhostd update [--check]")
+	}
+	if len(args) == 1 {
+		checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		info, e := updater.Check(checkCtx, l.Root, version, true)
+		if e != nil {
+			return fmt.Errorf("check for update: %w", e)
+		}
+		if info.Current == "" {
+			fmt.Println("devhostd: development build; updates are disabled")
+			return nil
+		}
+		if !info.Available {
+			fmt.Printf("devhostd %s is up to date (latest: %s)\n", info.Current, info.Latest)
+			return nil
+		}
+		fmt.Printf("devhostd %s -> %s is available\nrelease: %s\nrun `devhostd update` to install\n", info.Current, info.Latest, info.URL)
+		return nil
+	}
+	updateCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	return updater.Install(updateCtx, version, os.Stdout)
 }
 func daemonCmd(ctx context.Context, l state.Layout, args []string) error {
 	if len(args) == 0 {
@@ -367,7 +400,7 @@ func runApp(ctx context.Context, l state.Layout, args []string) error {
 }
 func reservedName(name string) bool {
 	switch name {
-	case "run", "daemon", "alias", "list", "trust", "doctor", "clean", "hosts", "service", "prune", "status":
+	case "run", "daemon", "alias", "list", "trust", "doctor", "clean", "hosts", "service", "prune", "status", "share", "api", "update":
 		return true
 	}
 	return false
