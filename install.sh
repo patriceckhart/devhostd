@@ -95,15 +95,37 @@ BASE_URL="https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}"
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
+# Browser download URLs work for public repositories. Private release assets
+# must be resolved and downloaded through GitHub's authenticated asset API.
+download_asset() {
+  local name="$1"
+  local output="$2"
+  if [ ${#CURL_AUTH[@]} -gt 0 ]; then
+    local release_json asset_id
+    release_json=$(curl -fsSL "${CURL_AUTH[@]+"${CURL_AUTH[@]}"}" \
+      "https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${VERSION}") \
+      || die "could not load release metadata for $VERSION"
+    asset_id=$(printf '%s' "$release_json" | tr -d '[:space:]' | tr '{' '\n' \
+      | grep -F "\"name\":\"${name}\"" \
+      | sed -nE 's/.*"id":([0-9]+).*/\1/p' | head -n1 || true)
+    [ -n "$asset_id" ] || die "release $VERSION does not contain $name"
+    curl -fsSL "${CURL_AUTH[@]+"${CURL_AUTH[@]}"}" \
+      -H "Accept: application/octet-stream" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -o "$output" \
+      "https://api.github.com/repos/${OWNER}/${REPO}/releases/assets/${asset_id}" \
+      || die "download failed for $name"
+  else
+    curl -fsSL -o "$output" "$BASE_URL/$name" \
+      || die "download failed: $BASE_URL/$name"
+  fi
+}
+
 msg "downloading $ARCHIVE"
-curl -fsSL "${CURL_AUTH[@]+"${CURL_AUTH[@]}"}" \
-  -o "$TEMP_DIR/$ARCHIVE" "$BASE_URL/$ARCHIVE" \
-  || die "download failed: $BASE_URL/$ARCHIVE"
+download_asset "$ARCHIVE" "$TEMP_DIR/$ARCHIVE"
 
 msg "downloading checksums"
-curl -fsSL "${CURL_AUTH[@]+"${CURL_AUTH[@]}"}" \
-  -o "$TEMP_DIR/checksums.txt" "$BASE_URL/checksums.txt" \
-  || die "download failed: $BASE_URL/checksums.txt"
+download_asset "checksums.txt" "$TEMP_DIR/checksums.txt"
 
 expected=$(grep " ${ARCHIVE}\$" "$TEMP_DIR/checksums.txt" | awk '{print $1}' || true)
 [ -n "$expected" ] || die "checksums.txt does not contain $ARCHIVE"
