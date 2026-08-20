@@ -317,16 +317,27 @@ func ensureDaemon(ctx context.Context, l state.Layout) (state.DaemonInfo, error)
 		}
 	}
 	if effectivePort < 1024 && !elevated() {
-		startArgs := append([]string{}, args...)
+		fmt.Printf("devhostd: starting the local proxy on port %d requires administrator access\n", effectivePort)
+		startArgs := backgroundDaemonArgs(args)
 		startArgs = append(startArgs, "--state-dir", l.Root)
 		if e := elevate(startArgs); e != nil {
 			return i, e
 		}
+		fmt.Printf("devhostd: local proxy is running on port %d\n", effectivePort)
 	} else if e := spawnDaemon(ctx, l, args); e != nil {
 		return i, e
 	}
 	e := control.Call(ctx, l.Socket(), "status", nil, &i)
 	return i, e
+}
+func backgroundDaemonArgs(args []string) []string {
+	out := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg != "--foreground" {
+			out = append(out, arg)
+		}
+	}
+	return out
 }
 func runApp(ctx context.Context, l state.Layout, args []string) error {
 	name := ""
@@ -793,7 +804,11 @@ func trust(l state.Layout) error {
 	if e := c.Run(); e != nil {
 		return e
 	}
-	return state.AtomicWrite(filepath.Join(l.CA(), "trusted"), []byte(time.Now().Format(time.RFC3339)+"\n"), 0600)
+	if e := state.AtomicWrite(filepath.Join(l.CA(), "trusted"), []byte(time.Now().Format(time.RFC3339)+"\n"), 0600); e != nil {
+		return e
+	}
+	fmt.Println("devhostd: local CA is trusted; HTTPS certificates are ready")
+	return nil
 }
 func promptTrust(l state.Layout) {
 	if _, e := os.Stat(filepath.Join(l.CA(), "trusted")); e == nil {

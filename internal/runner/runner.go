@@ -68,7 +68,8 @@ func Run(ctx context.Context, o Options) error {
 	if o.Info.Port != 80 && o.Info.Port != 443 {
 		url += ":" + strconv.Itoa(o.Info.Port)
 	}
-	fmt.Println("-> " + url)
+	fmt.Printf("devhostd: project %q is available at %s\n", o.Name, url)
+	fmt.Printf("devhostd: forwarding %s to 127.0.0.1:%d\n", url, port)
 	cmd := exec.Command(o.Command[0], o.Command[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
