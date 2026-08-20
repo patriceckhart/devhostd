@@ -32,7 +32,6 @@ archives:
     files:
       - LICENSE
       - README.md
-      - SPEC.md
     formats: [tar.gz]
     format_overrides:
       - goos: windows
@@ -73,5 +72,11 @@ release:
   header: |
     ## devhostd {{ .Tag }}
 
-    Download the archive for your platform, verify it against `checksums.txt`,
-    and place the `devhostd` binary on your `PATH`.
+    Install the latest release on macOS or Linux:
+
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/patriceckhart/devhostd/main/install.sh | bash
+    ```
+
+    Or download the archive for your platform, verify it against
+    `checksums.txt`, and place the `devhostd` binary on your `PATH`.

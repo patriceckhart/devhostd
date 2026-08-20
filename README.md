@@ -17,6 +17,31 @@ devhostd gives development servers stable, named URLs such as `https://myapp.loc
 - JSON output and a local agent-facing control API
 - launchd, systemd, and Windows Task Scheduler service integration
 
+## Install
+
+Install the latest macOS or Linux release directly from GitHub:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/patriceckhart/devhostd/main/install.sh | bash
+```
+
+The installer detects the operating system and architecture, downloads the matching GitHub release, verifies its SHA-256 checksum, and installs `devhostd` into the first writable directory among `/usr/local/bin`, `~/.local/bin`, and `~/bin`.
+
+Pin a version and optionally choose an installation directory:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/patriceckhart/devhostd/main/install.sh | bash -s -- v0.0.1 ~/bin
+```
+
+Environment variables can provide the same overrides:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/patriceckhart/devhostd/main/install.sh \
+  | DEVHOSTD_VERSION=v0.0.1 DEVHOSTD_PREFIX="$HOME/bin" bash
+```
+
+Windows users can download the `.zip` archive from the [GitHub releases page](https://github.com/patriceckhart/devhostd/releases).
+
 ## Requirements
 
 Building requires Go 1.25 or newer. Tailscale and ngrok sharing require their respective command-line programs at runtime.
