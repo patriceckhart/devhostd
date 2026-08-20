@@ -19,7 +19,7 @@ devhostd gives development servers stable, named URLs such as `https://myapp.loc
 
 ## Requirements
 
-Building requires Go 1.22 or newer. Tailscale and ngrok sharing require their respective command-line programs at runtime.
+Building requires Go 1.25 or newer. Tailscale and ngrok sharing require their respective command-line programs at runtime.
 
 ## Build
 

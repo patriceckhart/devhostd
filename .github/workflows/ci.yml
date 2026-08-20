@@ -19,12 +19,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.22"
+          # Go 1.25 avoids the macOS LC_UUID race-linker failure from Go 1.22.
+          go-version: "1.25.x"
           cache: true
 
       - name: go vet
