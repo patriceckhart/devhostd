@@ -1,0 +1,74 @@
+name: release
+
+# Every successful CI run on main creates the next release. Versions begin at
+# v0.0.1, increment the patch component, and roll over after 99:
+# v0.0.99 -> v0.1.0 -> v0.1.1.
+# Add [release=skip] to the commit message to suppress a release.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && !contains(github.event.workflow_run.head_commit.message, '[release=skip]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: check out tested commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: compute next version
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            latest="v0.0.0"
+          fi
+
+          version="${latest#v}"
+          IFS=. read -r major minor patch <<<"$version"
+          if [ "$patch" -ge 99 ]; then
+            minor=$((minor + 1))
+            patch=0
+          else
+            patch=$((patch + 1))
+          fi
+          next="v${major}.${minor}.${patch}"
+
+          printf '%s\n' "latest tag: $latest" "next tag: $next"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+
+      - name: create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.bump.outputs.next }}" -m "release ${{ steps.bump.outputs.next }}"
+          git push origin "${{ steps.bump.outputs.next }}"
+
+      - name: set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
